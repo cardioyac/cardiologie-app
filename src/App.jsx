@@ -1,4 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPABASE_URL = "https://gkkkiwvbvubzazdpjpea.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdra2tpd3ZidnViemF6ZHBqcGVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NTA4NjYsImV4cCI6MjA5ODEyNjg2Nn0.hoODoh83OQawIpqjTvq3Y0vQaPVZFPsoWwkKN2LSZCs";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const ADMIN_PASSWORD = "cardio2024";
 
 const cardiologyTopics = [
   {
@@ -262,6 +268,66 @@ export default function CardiologyApp() {
   const [activeSection, setActiveSection] = useState("epidemiologie");
   const [images, setImages] = useState({});
 
+  // Admin
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminError, setAdminError] = useState("");
+  const [logoTaps, setLogoTaps] = useState(0);
+
+  // Supabase medicaments
+  const [dbMedicaments, setDbMedicaments] = useState([]);
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    fetchMedicaments();
+  }, []);
+
+  const fetchMedicaments = async () => {
+    const { data, error } = await supabase.from("medicaments").select("*").order("title");
+    if (data && data.length > 0) setDbMedicaments(data);
+  };
+
+  const activeMedicaments = dbMedicaments.length > 0 ? dbMedicaments : medicaments;
+
+  const handleLogoTap = () => {
+    const newCount = logoTaps + 1;
+    setLogoTaps(newCount);
+    if (newCount >= 3) { setShowAdminLogin(true); setLogoTaps(0); }
+    setTimeout(() => setLogoTaps(0), 2000);
+  };
+
+  const handleAdminLogin = () => {
+    if (adminPassword === ADMIN_PASSWORD) {
+      setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(""); setAdminError("");
+    } else {
+      setAdminError("Mot de passe incorrect");
+    }
+  };
+
+  const handleEdit = (item) => {
+    setEditData({ ...item });
+    setEditMode(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const { id, ...fields } = editData;
+    if (id && typeof id === "number") {
+      await supabase.from("medicaments").update(fields).eq("id", id);
+    } else {
+      await supabase.from("medicaments").insert([fields]);
+    }
+    await fetchMedicaments();
+    setSaving(false);
+    setSaveSuccess(true);
+    setEditMode(false);
+    setTimeout(() => setSaveSuccess(false), 2000);
+  };
+
   const handleImageUpload = (id, e) => {
     const files = Array.from(e.target.files);
     files.forEach((file) => {
@@ -284,7 +350,7 @@ export default function CardiologyApp() {
     });
   };
 
-  const currentData = mainTab === "pathologies" ? cardiologyTopics : mainTab === "ecg" ? ecgItems : medicaments;
+  const currentData = mainTab === "pathologies" ? cardiologyTopics : mainTab === "ecg" ? ecgItems : activeMedicaments;
   const sections = mainTab === "medicaments" ? DRUG_SECTIONS : CLINICAL_SECTIONS;
   const defaultSection = mainTab === "medicaments" ? "indication" : "epidemiologie";
 
@@ -502,7 +568,7 @@ export default function CardiologyApp() {
               v1.0 — Référentiel clinique
             </span>
           </div>
-          <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 300, letterSpacing: "-0.02em", lineHeight: 1, marginBottom: 8, color: "#1A1A1A" }}>
+          <h1 onClick={handleLogoTap} style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 300, letterSpacing: "-0.02em", lineHeight: 1, marginBottom: 8, color: "#1A1A1A", cursor: "default", userSelect: "none" }}>
             Cardiologie
             <span style={{ color: ACCENT, fontStyle: "italic" }}> Clinique</span>
           </h1>
@@ -591,6 +657,11 @@ export default function CardiologyApp() {
               {selectedItem.title}
             </span>
             <span style={{ fontSize: 22 }}>{selectedItem.icon}</span>
+            {isAdmin && mainTab === "medicaments" && (
+              <button onClick={() => handleEdit(selectedItem)} style={{ background: ACCENT, border: "none", borderRadius: 4, color: "#fff", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, padding: "6px 12px", cursor: "pointer", letterSpacing: "0.06em" }}>
+                ✏️ Modifier
+              </button>
+            )}
           </div>
 
           <div style={{ background: "#FFFFFF", padding: "28px 24px 24px", borderBottom: "1px solid #EDE6DF" }}>
@@ -792,6 +863,78 @@ export default function CardiologyApp() {
           </button>
         ))}
       </div>
+      {/* ADMIN LOGIN MODAL */}
+      {showAdminLogin && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: "#FFF", borderRadius: 12, padding: 32, width: "100%", maxWidth: 360, border: "1px solid #EDE6DF", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 600, color: "#1A1A1A", marginBottom: 4 }}>Espace Admin</div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#B08070", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 24 }}>Accès restreint</div>
+            <input
+              type="password"
+              placeholder="Mot de passe"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
+              style={{ width: "100%", padding: "10px 14px", border: `1px solid ${adminError ? ACCENT : "#DDD5CC"}`, borderRadius: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: 13, outline: "none", marginBottom: 8, background: "#F7F4F0" }}
+            />
+            {adminError && <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: ACCENT, marginBottom: 12 }}>{adminError}</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button onClick={() => { setShowAdminLogin(false); setAdminPassword(""); setAdminError(""); }} style={{ flex: 1, padding: "10px", background: "#F7F4F0", border: "1px solid #DDD5CC", borderRadius: 6, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#8C7B6E" }}>
+                Annuler
+              </button>
+              <button onClick={handleAdminLogin} style={{ flex: 1, padding: "10px", background: ACCENT, border: "none", borderRadius: 6, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#fff", letterSpacing: "0.06em" }}>
+                Connexion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MODAL */}
+      {editMode && editData && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto" }}>
+          <div style={{ background: "#FFF", borderRadius: 12, padding: 32, width: "100%", maxWidth: 560, border: "1px solid #EDE6DF", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 600, color: "#1A1A1A", marginBottom: 4 }}>
+              ✏️ Modifier
+            </div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#B08070", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 24 }}>{editData.title}</div>
+
+            {[
+              { key: "indication", label: "Indication" },
+              { key: "mecanisme", label: "Mécanisme" },
+              { key: "posologie", label: "Posologie" },
+              { key: "effetsIndesirables", label: "Effets indésirables" },
+            ].map((field) => (
+              <div key={field.key} style={{ marginBottom: 20 }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: ACCENT, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{field.label}</div>
+                <textarea
+                  value={editData[field.key] || ""}
+                  onChange={(e) => setEditData({ ...editData, [field.key]: e.target.value })}
+                  rows={4}
+                  style={{ width: "100%", padding: "10px 14px", border: "1px solid #DDD5CC", borderRadius: 6, fontFamily: "'Cormorant Garamond', serif", fontSize: 15, outline: "none", background: "#F7F4F0", resize: "vertical", lineHeight: 1.6 }}
+                />
+              </div>
+            ))}
+
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button onClick={() => setEditMode(false)} style={{ flex: 1, padding: "12px", background: "#F7F4F0", border: "1px solid #DDD5CC", borderRadius: 6, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#8C7B6E" }}>
+                Annuler
+              </button>
+              <button onClick={handleSave} disabled={saving} style={{ flex: 2, padding: "12px", background: ACCENT, border: "none", borderRadius: 6, cursor: "pointer", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#fff", letterSpacing: "0.06em" }}>
+                {saving ? "Sauvegarde..." : "💾 Sauvegarder"}
+              </button>
+            </div>
+            {saveSuccess && <div style={{ textAlign: "center", marginTop: 12, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "#2ECC71" }}>✓ Sauvegardé avec succès</div>}
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN INDICATOR */}
+      {isAdmin && (
+        <div style={{ position: "fixed", top: 12, right: 12, zIndex: 90, background: ACCENT, color: "#fff", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, padding: "4px 10px", borderRadius: 3, letterSpacing: "0.08em" }}>
+          ADMIN
+        </div>
+      )}
     </div>
   );
 }
