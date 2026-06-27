@@ -277,6 +277,8 @@ export default function CardiologyApp() {
 
   // Supabase medicaments
   const [dbMedicaments, setDbMedicaments] = useState([]);
+  // Supabase pathologies
+  const [dbPathologies, setDbPathologies] = useState([]);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -284,14 +286,21 @@ export default function CardiologyApp() {
 
   useEffect(() => {
     fetchMedicaments();
+    fetchPathologies();
   }, []);
 
   const fetchMedicaments = async () => {
-    const { data, error } = await supabase.from("medicaments").select("*").order("title");
+    const { data } = await supabase.from("medicaments").select("*").order("title");
     if (data && data.length > 0) setDbMedicaments(data);
   };
 
+  const fetchPathologies = async () => {
+    const { data } = await supabase.from("pathologies").select("*").order("title");
+    if (data && data.length > 0) setDbPathologies(data);
+  };
+
   const activeMedicaments = dbMedicaments.length > 0 ? dbMedicaments : medicaments;
+  const activePathologies = dbPathologies.length > 0 ? dbPathologies : cardiologyTopics;
 
   const handleLogoTap = () => {
     const newCount = logoTaps + 1;
@@ -315,13 +324,15 @@ export default function CardiologyApp() {
 
   const handleSave = async () => {
     setSaving(true);
+    const table = mainTab === "medicaments" ? "medicaments" : "pathologies";
     const { id, ...fields } = editData;
     if (id && typeof id === "number") {
-      await supabase.from("medicaments").update(fields).eq("id", id);
+      await supabase.from(table).update(fields).eq("id", id);
     } else {
-      await supabase.from("medicaments").insert([fields]);
+      await supabase.from(table).insert([fields]);
     }
-    await fetchMedicaments();
+    if (table === "medicaments") await fetchMedicaments();
+    else await fetchPathologies();
     setSaving(false);
     setSaveSuccess(true);
     setEditMode(false);
@@ -350,7 +361,7 @@ export default function CardiologyApp() {
     });
   };
 
-  const currentData = mainTab === "pathologies" ? cardiologyTopics : mainTab === "ecg" ? ecgItems : activeMedicaments;
+  const currentData = mainTab === "pathologies" ? activePathologies : mainTab === "ecg" ? ecgItems : activeMedicaments;
   const sections = mainTab === "medicaments" ? DRUG_SECTIONS : CLINICAL_SECTIONS;
   const defaultSection = mainTab === "medicaments" ? "indication" : "epidemiologie";
 
@@ -657,7 +668,7 @@ export default function CardiologyApp() {
               {selectedItem.title}
             </span>
             <span style={{ fontSize: 22 }}>{selectedItem.icon}</span>
-            {isAdmin && mainTab === "medicaments" && (
+            {isAdmin && (mainTab === "medicaments" || mainTab === "pathologies") && (
               <button onClick={() => handleEdit(selectedItem)} style={{ background: ACCENT, border: "none", borderRadius: 4, color: "#fff", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, padding: "6px 12px", cursor: "pointer", letterSpacing: "0.06em" }}>
                 ✏️ Modifier
               </button>
@@ -899,12 +910,7 @@ export default function CardiologyApp() {
             </div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#B08070", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 24 }}>{editData.title}</div>
 
-            {[
-              { key: "indication", label: "Indication" },
-              { key: "mecanisme", label: "Mécanisme" },
-              { key: "posologie", label: "Posologie" },
-              { key: "effetsIndesirables", label: "Effets indésirables" },
-            ].map((field) => (
+            {(mainTab === "medicaments" ? DRUG_SECTIONS : CLINICAL_SECTIONS).map((field) => (
               <div key={field.key} style={{ marginBottom: 20 }}>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: ACCENT, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{field.label}</div>
                 <textarea
