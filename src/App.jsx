@@ -864,6 +864,21 @@ export default function CardiologyApp() {
         </div>
       )}
 
+      {/* BOUTON NOUVEAU MÉDICAMENT (admin only) */}
+      {isAdmin && mainTab === "medicaments" && !activeCard && (
+        <div style={{ position: "fixed", bottom: 90, right: 20, zIndex: 50 }}>
+          <button
+            onClick={() => {
+              setEditData({ title: "", subtitle: "", icon: "💊", letter: "", tags: "", indication: "", mecanisme: "", posologie: "", effetsIndesirables: "" });
+              setEditMode(true);
+            }}
+            style={{ background: ACCENT, border: "none", borderRadius: "50px", color: "#fff", fontFamily: "'JetBrains Mono', monospace", fontSize: 12, padding: "14px 20px", cursor: "pointer", boxShadow: "0 4px 20px rgba(192,57,43,0.4)", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 8 }}
+          >
+            <span style={{ fontSize: 18 }}>+</span> Nouveau médicament
+          </button>
+        </div>
+      )}
+
       {/* BOTTOM NAVIGATION */}
       <div className="bottom-nav">
         {NAV_TABS.map((tab) => (
@@ -906,10 +921,34 @@ export default function CardiologyApp() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto" }}>
           <div style={{ background: "#FFF", borderRadius: 12, padding: 32, width: "100%", maxWidth: 560, border: "1px solid #EDE6DF", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 600, color: "#1A1A1A", marginBottom: 4 }}>
-              ✏️ Modifier
+              {editData.id ? "✏️ Modifier" : "➕ Nouveau médicament"}
             </div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#B08070", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 24 }}>{editData.title}</div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#B08070", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 24 }}>{editData.title || "Nouveau"}</div>
 
+            {/* Champs de base si nouveau médicament */}
+            {!editData.id && (
+              <div>
+                {[
+                  { key: "title", label: "Nom du médicament" },
+                  { key: "subtitle", label: "Classe thérapeutique" },
+                  { key: "icon", label: "Icône (emoji)" },
+                  { key: "letter", label: "Lettre (ex: A)" },
+                  { key: "tags", label: "Tags (séparés par des virgules)" },
+                ].map((field) => (
+                  <div key={field.key} style={{ marginBottom: 16 }}>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: ACCENT, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{field.label}</div>
+                    <input
+                      value={editData[field.key] || ""}
+                      onChange={(e) => setEditData({ ...editData, [field.key]: e.target.value })}
+                      style={{ width: "100%", padding: "10px 14px", border: "1px solid #DDD5CC", borderRadius: 6, fontFamily: "'Cormorant Garamond', serif", fontSize: 15, outline: "none", background: "#F7F4F0" }}
+                    />
+                  </div>
+                ))}
+                <div style={{ height: 1, background: "#EDE6DF", margin: "20px 0" }} />
+              </div>
+            )}
+
+            {/* Champs cliniques */}
             {(mainTab === "medicaments" ? DRUG_SECTIONS : CLINICAL_SECTIONS).map((field) => (
               <div key={field.key} style={{ marginBottom: 20 }}>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: ACCENT, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{field.label}</div>
