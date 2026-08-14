@@ -291,12 +291,22 @@ export default function CardiologyApp() {
 
   const fetchMedicaments = async () => {
     const { data } = await supabase.from("medicaments").select("*").order("title");
-    if (data && data.length > 0) setDbMedicaments(data);
+    if (data && data.length > 0) {
+      setDbMedicaments(data.map(item => ({
+        ...item,
+        tags: typeof item.tags === "string" ? item.tags.split(",").map(t => t.trim()) : item.tags || [],
+      })));
+    }
   };
 
   const fetchPathologies = async () => {
     const { data } = await supabase.from("pathologies").select("*").order("title");
-    if (data && data.length > 0) setDbPathologies(data);
+    if (data && data.length > 0) {
+      setDbPathologies(data.map(item => ({
+        ...item,
+        tags: typeof item.tags === "string" ? item.tags.split(",").map(t => t.trim()) : item.tags || [],
+      })));
+    }
   };
 
   const activeMedicaments = dbMedicaments.length > 0 ? dbMedicaments : medicaments;
