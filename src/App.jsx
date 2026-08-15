@@ -327,6 +327,29 @@ export default function CardiologyApp() {
     }
   };
 
+  const renderMarkdown = (text) => {
+    if (!text) return null;
+    return text.split("\n").map((line, i) => {
+      if (line.startsWith("- ") || line.startsWith("• ")) {
+        const content = line.replace(/^[-•]\s/, "");
+        const parts = content.split(/\*\*(.*?)\*\*/g);
+        return (
+          <div key={i} style={{ display: "flex", gap: 10, marginBottom: 6 }}>
+            <span style={{ color: ACCENT, fontWeight: 700, flexShrink: 0 }}>•</span>
+            <span>{parts.map((p, j) => j % 2 === 1 ? <strong key={j}>{p}</strong> : p)}</span>
+          </div>
+        );
+      }
+      if (line === "") return <div key={i} style={{ height: 8 }} />;
+      const parts = line.split(/\*\*(.*?)\*\*/g);
+      return (
+        <div key={i} style={{ marginBottom: 4 }}>
+          {parts.map((p, j) => j % 2 === 1 ? <strong key={j}>{p}</strong> : p)}
+        </div>
+      );
+    });
+  };
+
   const handleEdit = (item) => {
     setEditData({ ...item });
     setEditMode(true);
@@ -713,9 +736,9 @@ export default function CardiologyApp() {
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: ACCENT, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 16 }}>
               {sections.find((s) => s.key === activeSection)?.label}
             </div>
-            <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 19, color: "#2A1A10", lineHeight: 1.9 }}>
-              {getDetailContent(selectedItem, activeSection)}
-            </p>
+            <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 19, color: "#2A1A10", lineHeight: 1.9 }}>
+              {renderMarkdown(getDetailContent(selectedItem, activeSection))}
+            </div>
 
             {images[`${mainTab}-${selectedItem.id}`]?.length > 0 && (
               <div style={{ marginTop: 40, paddingTop: 28, borderTop: "1px solid #EDE6DF" }}>
@@ -962,11 +985,36 @@ export default function CardiologyApp() {
             {(mainTab === "medicaments" ? DRUG_SECTIONS : CLINICAL_SECTIONS).map((field) => (
               <div key={field.key} style={{ marginBottom: 20 }}>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: ACCENT, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{field.label}</div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                  {[
+                    { label: "• Liste", insert: (v, s, e) => { const before = v.substring(0, s); const after = v.substring(e); const sel = v.substring(s, e); return before + "\n- " + (sel || "") + after; } },
+                    { label: "**Gras**", insert: (v, s, e) => { const before = v.substring(0, s); const after = v.substring(e); const sel = v.substring(s, e); return before + "**" + (sel || "texte") + "**" + after; } },
+                    { label: "↵ Saut", insert: (v, s, e) => { const before = v.substring(0, s); const after = v.substring(e); return before + "\n" + after; } },
+                  ].map((btn) => (
+                    <button
+                      key={btn.label}
+                      type="button"
+                      onClick={() => {
+                        const el = document.getElementById(`textarea-${field.key}`);
+                        if (!el) return;
+                        const s = el.selectionStart;
+                        const e = el.selectionEnd;
+                        const newVal = btn.insert(editData[field.key] || "", s, e);
+                        setEditData({ ...editData, [field.key]: newVal });
+                        setTimeout(() => { el.focus(); el.setSelectionRange(s + 4, s + 4); }, 0);
+                      }}
+                      style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, padding: "4px 10px", background: "#F2EDE8", border: "1px solid #DDD5CC", borderRadius: 3, cursor: "pointer", color: "#6A5A50", letterSpacing: "0.04em" }}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
                 <textarea
+                  id={`textarea-${field.key}`}
                   value={editData[field.key] || ""}
                   onChange={(e) => setEditData({ ...editData, [field.key]: e.target.value })}
-                  rows={4}
-                  style={{ width: "100%", padding: "10px 14px", border: "1px solid #DDD5CC", borderRadius: 6, fontFamily: "'Cormorant Garamond', serif", fontSize: 15, outline: "none", background: "#F7F4F0", resize: "vertical", lineHeight: 1.6 }}
+                  rows={5}
+                  style={{ width: "100%", padding: "10px 14px", border: "1px solid #DDD5CC", borderRadius: 6, fontFamily: "'Cormorant Garamond', serif", fontSize: 15, outline: "none", background: "#F7F4F0", resize: "vertical", lineHeight: 1.7 }}
                 />
               </div>
             ))}
