@@ -1068,9 +1068,9 @@ export default function CardiologyApp() {
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: ACCENT, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{field.label}</div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                   {[
-                    { label: "• Liste", insert: (v, ss, ee) => { const before = v.substring(0, ss); const after = v.substring(ee); const sel = v.substring(ss, ee); return before + "\n- " + (sel || "") + after; } },
-                    { label: "**Gras**", insert: (v, ss, ee) => { const before = v.substring(0, ss); const after = v.substring(ee); const sel = v.substring(ss, ee); return before + "**" + (sel || "texte") + "**" + after; } },
-                    { label: "↵ Saut", insert: (v, ss, ee) => { const before = v.substring(0, ss); const after = v.substring(ee); return before + "\n" + after; } },
+                    { label: "• Liste", insert: (v, s, e) => { const before = v.substring(0, s); const after = v.substring(e); const sel = v.substring(s, e); return before + "\n- " + (sel || "") + after; } },
+                    { label: "**Gras**", insert: (v, s, e) => { const before = v.substring(0, s); const after = v.substring(e); const sel = v.substring(s, e); return before + "**" + (sel || "texte") + "**" + after; } },
+                    { label: "↵ Saut", insert: (v, s, e) => { const before = v.substring(0, s); const after = v.substring(e); return before + "\n" + after; } },
                   ].map((btn) => (
                     <button
                       key={btn.label}
