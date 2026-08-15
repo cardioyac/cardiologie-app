@@ -289,23 +289,24 @@ export default function CardiologyApp() {
     fetchPathologies();
   }, []);
 
+  const parseTags = (tags) => {
+    if (!tags) return [];
+    if (Array.isArray(tags)) return tags;
+    try { const parsed = JSON.parse(tags); if (Array.isArray(parsed)) return parsed; } catch {}
+    return tags.split(",").map(t => t.trim()).filter(Boolean);
+  };
+
   const fetchMedicaments = async () => {
     const { data } = await supabase.from("medicaments").select("*").order("title");
     if (data && data.length > 0) {
-      setDbMedicaments(data.map(item => ({
-        ...item,
-        tags: typeof item.tags === "string" ? item.tags.split(",").map(t => t.trim()) : item.tags || [],
-      })));
+      setDbMedicaments(data.map(item => ({ ...item, tags: parseTags(item.tags) })));
     }
   };
 
   const fetchPathologies = async () => {
     const { data } = await supabase.from("pathologies").select("*").order("title");
     if (data && data.length > 0) {
-      setDbPathologies(data.map(item => ({
-        ...item,
-        tags: typeof item.tags === "string" ? item.tags.split(",").map(t => t.trim()) : item.tags || [],
-      })));
+      setDbPathologies(data.map(item => ({ ...item, tags: parseTags(item.tags) })));
     }
   };
 
