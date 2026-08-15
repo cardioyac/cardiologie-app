@@ -275,6 +275,10 @@ export default function CardiologyApp() {
   const [adminError, setAdminError] = useState("");
   const [logoTaps, setLogoTaps] = useState(0);
 
+  // ECG images
+  const [ecgImages, setEcgImages] = useState({});
+  const [uploadingEcg, setUploadingEcg] = useState(false);
+
   // Supabase medicaments
   const [dbMedicaments, setDbMedicaments] = useState([]);
   // Supabase pathologies
@@ -328,7 +332,36 @@ export default function CardiologyApp() {
     }
   };
 
-  const renderMarkdown = (text) => {
+  const fetchEcgImages = async (ecgId) => {
+    const { data } = await supabase.storage.from("ecg-images").list(`ecg-${ecgId}/`);
+    if (data && data.length > 0) {
+      const urls = data.map((file) => ({
+        name: file.name,
+        url: supabase.storage.from("ecg-images").getPublicUrl(`ecg-${ecgId}/${file.name}`).data.publicUrl,
+      }));
+      setEcgImages((prev) => ({ ...prev, [ecgId]: urls }));
+    }
+  };
+
+  const handleEcgUpload = async (ecgId, e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploadingEcg(true);
+    for (const file of files) {
+      const filename = `${Date.now()}-${file.name}`;
+      await supabase.storage.from("ecg-images").upload(`ecg-${ecgId}/${filename}`, file);
+    }
+    await fetchEcgImages(ecgId);
+    setUploadingEcg(false);
+  };
+
+  const handleEcgDeleteImage = async (ecgId, filename) => {
+    await supabase.storage.from("ecg-images").remove([`ecg-${ecgId}/${filename}`]);
+    setEcgImages((prev) => ({
+      ...prev,
+      [ecgId]: (prev[ecgId] || []).filter((img) => img.name !== filename),
+    }));
+  };
     if (!text) return null;
     return text.split("\n").map((line, i) => {
       if (line.startsWith("- ") || line.startsWith("• ")) {
@@ -426,6 +459,7 @@ export default function CardiologyApp() {
   const openDetail = (id) => {
     setActiveCard(id);
     setActiveSection(defaultSection);
+    if (mainTab === "ecg") fetchEcgImages(id);
   };
 
   const switchTab = (tab) => {
@@ -754,6 +788,52 @@ export default function CardiologyApp() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* ECG IMAGES SECTION */}
+            {mainTab === "ecg" && (
+              <div style={{ marginTop: 40, paddingTop: 28, borderTop: "1px solid #EDE6DF" }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#B0A090", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>
+                  Tracés ECG — {ecgImages[selectedItem.id]?.length || 0} image{(ecgImages[selectedItem.id]?.length || 0) !== 1 ? "s" : ""}
+                </div>
+
+                {/* Images grid */}
+                {ecgImages[selectedItem.id]?.length > 0 && (
+                  <div className="img-grid" style={{ marginBottom: 16 }}>
+                    {ecgImages[selectedItem.id].map((img, i) => (
+                      <div key={i} className="img-item" style={{ cursor: "pointer" }} onClick={() => window.open(img.url, "_blank")}>
+                        <img src={img.url} alt={img.name} style={{ height: 180, objectFit: "contain", background: "#FFF" }} />
+                        {isAdmin && (
+                          <button className="img-delete" onClick={(e) => { e.stopPropagation(); handleEcgDeleteImage(selectedItem.id, img.name); }}>×</button>
+                        )}
+                        <div className="img-caption">{img.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload zone — admin only */}
+                {isAdmin && (
+                  <label className="upload-zone">
+                    <input type="file" accept="image/*" multiple onChange={(e) => handleEcgUpload(selectedItem.id, e)} />
+                    {uploadingEcg ? (
+                      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: ACCENT }}>Upload en cours...</div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: 28, marginBottom: 8 }}>📷</div>
+                        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15, color: "#8C7B6E", fontStyle: "italic" }}>Ajouter un tracé ECG</div>
+                        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#C0B0A0", marginTop: 4 }}>Photo · Scan · Capture</div>
+                      </>
+                    )}
+                  </label>
+                )}
+
+                {!isAdmin && !ecgImages[selectedItem.id]?.length && (
+                  <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15, color: "#C0B0A0", fontStyle: "italic" }}>
+                    Aucun tracé disponible pour le moment.
+                  </p>
+                )}
               </div>
             )}
 
