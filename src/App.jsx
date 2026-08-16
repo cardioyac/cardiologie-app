@@ -101,6 +101,8 @@ export default function CardiologyApp() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [ecgImages, setEcgImages] = useState({});
   const [uploadingEcg, setUploadingEcg] = useState(false);
+  const [ecgPdfs, setEcgPdfs] = useState({});
+  const [uploadingPdf, setUploadingPdf] = useState(false);
 
   const parseTags = (tags) => {
     if (!tags) return [];
@@ -147,6 +149,34 @@ export default function CardiologyApp() {
   const handleEcgDeleteImage = async (ecgId, filename) => {
     await supabase.storage.from("ecg-images").remove(["ecg-" + ecgId + "/" + filename]);
     setEcgImages(prev => ({ ...prev, [ecgId]: (prev[ecgId] || []).filter(img => img.name !== filename) }));
+  };
+
+  const fetchEcgPdfs = async (ecgId) => {
+    const { data } = await supabase.storage.from("ecg-pdfs").list("ecg-" + ecgId + "/");
+    if (data && data.length > 0) {
+      const urls = data.map(file => ({
+        name: file.name,
+        url: supabase.storage.from("ecg-pdfs").getPublicUrl("ecg-" + ecgId + "/" + file.name).data.publicUrl,
+      }));
+      setEcgPdfs(prev => ({ ...prev, [ecgId]: urls }));
+    }
+  };
+
+  const handleEcgPdfUpload = async (ecgId, e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploadingPdf(true);
+    for (const file of files) {
+      const filename = Date.now() + "-" + file.name;
+      await supabase.storage.from("ecg-pdfs").upload("ecg-" + ecgId + "/" + filename, file);
+    }
+    await fetchEcgPdfs(ecgId);
+    setUploadingPdf(false);
+  };
+
+  const handleEcgDeletePdf = async (ecgId, filename) => {
+    await supabase.storage.from("ecg-pdfs").remove(["ecg-" + ecgId + "/" + filename]);
+    setEcgPdfs(prev => ({ ...prev, [ecgId]: (prev[ecgId] || []).filter(p => p.name !== filename) }));
   };
 
   const renderMarkdown = (text) => {
@@ -213,7 +243,7 @@ export default function CardiologyApp() {
 
   const selectedItem = activeCard && typeof activeCard === "number" ? currentData.find(t => t.id === activeCard) : null;
 
-  const openDetail = (id) => { setActiveCard(id); setActiveSection(defaultSection); if (mainTab === "ecg") fetchEcgImages(id); };
+  const openDetail = (id) => { setActiveCard(id); setActiveSection(defaultSection); if (mainTab === "ecg") { fetchEcgImages(id); fetchEcgPdfs(id); } };
 
   const switchTab = (tab) => { setMainTab(tab); setSearch(""); setActiveLetter(null); setActiveCard(null); };
 
@@ -362,12 +392,14 @@ export default function CardiologyApp() {
               {renderMarkdown(getDetailContent(selectedItem, activeSection))}
             </div>
 
-            {/* ECG IMAGES */}
+            {/* ECG IMAGES & PDF */}
             {mainTab === "ecg" && (
               <div style={{ marginTop:40, paddingTop:28, borderTop:"1px solid #EDE6DF" }}>
                 <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:"#B0A090", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:14 }}>
-                  Tracés ECG — {ecgImages[selectedItem.id]?.length || 0} image{(ecgImages[selectedItem.id]?.length || 0) !== 1 ? "s" : ""}
+                  Tracés ECG — {(ecgImages[selectedItem.id]?.length || 0) + (ecgPdfs[selectedItem.id]?.length || 0)} fichier{((ecgImages[selectedItem.id]?.length || 0) + (ecgPdfs[selectedItem.id]?.length || 0)) !== 1 ? "s" : ""}
                 </div>
+
+                {/* Images */}
                 {ecgImages[selectedItem.id]?.length > 0 && (
                   <div className="ig" style={{ marginBottom:16 }}>
                     {ecgImages[selectedItem.id].map((img, i) => (
@@ -379,21 +411,61 @@ export default function CardiologyApp() {
                     ))}
                   </div>
                 )}
-                {isAdmin && (
-                  <label className="uz">
-                    <input type="file" accept="image/*" multiple onChange={e => handleEcgUpload(selectedItem.id, e)} />
-                    {uploadingEcg
-                      ? <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:12, color:ACCENT }}>Upload en cours...</div>
-                      : <>
-                          <div style={{ fontSize:32, marginBottom:8 }}>Photo</div>
-                          <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, color:"#8C7B6E", fontStyle:"italic" }}>Ajouter un tracé ECG</div>
-                          <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:"#C0B0A0", marginTop:4 }}>Photo · Scan · Capture</div>
-                        </>
-                    }
-                  </label>
+
+                {/* PDFs */}
+                {ecgPdfs[selectedItem.id]?.length > 0 && (
+                  <div style={{ display:"grid", gap:16, marginBottom:16 }}>
+                    {ecgPdfs[selectedItem.id].map((pdf, i) => (
+                      <div key={i} style={{ background:"#FFFFFF", border:"1px solid #EDE6DF", borderRadius:8, overflow:"hidden" }}>
+                        <div style={{ padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #EDE6DF" }}>
+                          <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, fontWeight:600, color:"#1A1A1A" }}>{pdf.name}</span>
+                          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                            <a href={pdf.url} target="_blank" rel="noreferrer" style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:ACCENT, textDecoration:"none", padding:"4px 10px", border:"1px solid " + ACCENT + "40", borderRadius:3 }}>Ouvrir</a>
+                            {isAdmin && (
+                              <button onClick={() => handleEcgDeletePdf(selectedItem.id, pdf.name)} style={{ background:"#FDF0EE", border:"1px solid " + ACCENT + "30", borderRadius:3, color:ACCENT, cursor:"pointer", fontSize:12, padding:"4px 8px" }}>×</button>
+                            )}
+                          </div>
+                        </div>
+                        <iframe
+                          src={pdf.url}
+                          style={{ width:"100%", height:500, border:"none", display:"block" }}
+                          title={pdf.name}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 )}
-                {!isAdmin && !ecgImages[selectedItem.id]?.length && (
-                  <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, color:"#C0B0A0", fontStyle:"italic" }}>Aucun tracé disponible pour le moment.</p>
+
+                {/* Upload zones — admin only */}
+                {isAdmin && (
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                    <label className="uz">
+                      <input type="file" accept="image/*" multiple onChange={e => handleEcgUpload(selectedItem.id, e)} />
+                      {uploadingEcg
+                        ? <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:ACCENT }}>Upload...</div>
+                        : <>
+                            <div style={{ fontSize:24, marginBottom:6 }}>IMG</div>
+                            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:14, color:"#8C7B6E", fontStyle:"italic" }}>Ajouter une image</div>
+                          </>
+                      }
+                    </label>
+                    <label className="uz">
+                      <input type="file" accept="application/pdf" multiple onChange={e => handleEcgPdfUpload(selectedItem.id, e)} />
+                      {uploadingPdf
+                        ? <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:ACCENT }}>Upload...</div>
+                        : <>
+                            <div style={{ fontSize:24, marginBottom:6 }}>PDF</div>
+                            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:14, color:"#8C7B6E", fontStyle:"italic" }}>Ajouter un PDF</div>
+                          </>
+                      }
+                    </label>
+                  </div>
+                )}
+
+                {!isAdmin && !ecgImages[selectedItem.id]?.length && !ecgPdfs[selectedItem.id]?.length && (
+                  <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, color:"#C0B0A0", fontStyle:"italic" }}>
+                    Aucun tracé disponible pour le moment.
+                  </p>
                 )}
               </div>
             )}
