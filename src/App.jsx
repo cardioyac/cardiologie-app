@@ -88,7 +88,7 @@ export default function CardiologyApp() {
   const [activeLetter, setActiveLetter] = useState(null);
   const [activeCard, setActiveCard] = useState(null);
   const [activeSection, setActiveSection] = useState("epidemiologie");
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem("isAdmin") === "true");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
   const [adminError, setAdminError] = useState("");
@@ -218,8 +218,18 @@ export default function CardiologyApp() {
   };
 
   const handleAdminLogin = () => {
-    if (adminPassword === ADMIN_PASSWORD) { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(""); setAdminError(""); }
-    else setAdminError("Mot de passe incorrect");
+    if (adminPassword === ADMIN_PASSWORD) {
+      setIsAdmin(true);
+      localStorage.setItem("isAdmin", "true");
+      setShowAdminLogin(false);
+      setAdminPassword("");
+      setAdminError("");
+    } else setAdminError("Mot de passe incorrect");
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdmin(false);
+    localStorage.removeItem("isAdmin");
   };
 
   const activeMedicaments = dbMedicaments.length > 0 ? dbMedicaments : medicaments;
@@ -655,7 +665,12 @@ export default function CardiologyApp() {
       )}
 
       {/* ADMIN INDICATOR */}
-      {isAdmin && <div style={{ position:"fixed", top:12, right:12, zIndex:90, background:ACCENT, color:"#fff", fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"4px 10px", borderRadius:3, letterSpacing:"0.08em" }}>ADMIN</div>}
+      {isAdmin && (
+        <div style={{ position:"fixed", top:12, right:12, zIndex:90, display:"flex", alignItems:"center", gap:8 }}>
+          <div style={{ background:ACCENT, color:"#fff", fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"4px 10px", borderRadius:3, letterSpacing:"0.08em" }}>ADMIN</div>
+          <button onClick={handleAdminLogout} style={{ background:"#fff", border:"1px solid " + ACCENT + "50", color:ACCENT, fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"4px 10px", borderRadius:3, cursor:"pointer", letterSpacing:"0.08em" }}>Déconnexion</button>
+        </div>
+      )}
     </div>
   );
 }
