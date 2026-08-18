@@ -253,6 +253,17 @@ export default function CardiologyApp() {
     return "Contenu à venir.";
   };
 
+  const handleDelete = async () => {
+    if (!selectedItem) return;
+    const table = mainTab === "medicaments" ? "medicaments" : "pathologies";
+    const confirmed = window.confirm("Supprimer " + selectedItem.title + " ?");
+    if (!confirmed) return;
+    await supabase.from(table).delete().eq("id", selectedItem.id);
+    if (table === "medicaments") await fetchMedicaments();
+    else await fetchPathologies();
+    setActiveCard(null);
+  };
+
   const css = `
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
     * { box-sizing:border-box; margin:0; padding:0; }
@@ -368,7 +379,10 @@ export default function CardiologyApp() {
             <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:17, fontWeight:600, color:"#1A1A1A", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{selectedItem.title}</span>
             <span style={{ fontSize:22 }}>{selectedItem.icon}</span>
             {isAdmin && (mainTab === "medicaments" || mainTab === "pathologies") && (
-              <button onClick={() => handleEdit(selectedItem)} style={{ background:ACCENT, border:"none", borderRadius:4, color:"#fff", fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"6px 12px", cursor:"pointer" }}>Modifier Modifier</button>
+              <div style={{ display:"flex", gap:6 }}>
+                <button onClick={() => handleEdit(selectedItem)} style={{ background:ACCENT, border:"none", borderRadius:4, color:"#fff", fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"6px 12px", cursor:"pointer" }}>Modifier</button>
+                <button onClick={handleDelete} style={{ background:"transparent", border:"1px solid " + ACCENT + "60", borderRadius:4, color:ACCENT, fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"6px 12px", cursor:"pointer" }}>Supprimer</button>
+              </div>
             )}
           </div>
 
@@ -560,6 +574,15 @@ export default function CardiologyApp() {
         </div>
       )}
 
+      {/* BOUTON NOUVELLE PATHOLOGIE */}
+      {isAdmin && mainTab === "pathologies" && !activeCard && (
+        <div style={{ position:"fixed", bottom:90, right:20, zIndex:50 }}>
+          <button onClick={() => { setEditData({ title:"", subtitle:"", icon:"🫀", letter:"", tags:"", epidemiologie:"", physiopathologie:"", diagnostique:"", traitement:"" }); setEditMode(true); }} style={{ background:ACCENT, border:"none", borderRadius:"50px", color:"#fff", fontFamily:"'JetBrains Mono',monospace", fontSize:12, padding:"14px 20px", cursor:"pointer", boxShadow:"0 4px 20px rgba(192,57,43,0.4)", letterSpacing:"0.06em", display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:18 }}>+</span> Nouvelle pathologie
+          </button>
+        </div>
+      )}
+
       {/* BOTTOM NAV */}
       <div className="bn">
         {NAV_TABS.map(tab => (
@@ -591,7 +614,7 @@ export default function CardiologyApp() {
       {editMode && editData && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center", padding:24, overflowY:"auto", animation:"fadeIn 0.2s ease" }}>
           <div style={{ background:"#FFF", borderRadius:12, padding:32, width:"100%", maxWidth:560, border:"1px solid #EDE6DF", boxShadow:"0 20px 60px rgba(0,0,0,0.15)", maxHeight:"90vh", overflowY:"auto" }}>
-            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:24, fontWeight:600, color:"#1A1A1A", marginBottom:4 }}>{editData.id ? "Modifier Modifier" : "Nouveau Nouveau médicament"}</div>
+            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:24, fontWeight:600, color:"#1A1A1A", marginBottom:4 }}>{editData.id ? "Modifier" : mainTab === "pathologies" ? "Nouvelle pathologie" : "Nouveau médicament"}</div>
             <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:"#B08070", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:24 }}>{editData.title || "Nouveau"}</div>
 
             {!editData.id && (
