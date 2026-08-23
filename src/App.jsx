@@ -103,6 +103,15 @@ export default function CardiologyApp() {
   const [uploadingEcg, setUploadingEcg] = useState(false);
   const [ecgPdfs, setEcgPdfs] = useState({});
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [annuaire, setAnnuaire] = useState({});
+  const [annuaireEdit, setAnnuaireEdit] = useState(false);
+  const [annuaireForm, setAnnuaireForm] = useState({ nom:"", poste:"", categorie:"medecin", info:"" });
+  const CATEGORIES = [
+    { key:"medecin", label:"Médecin", icon:"🩺" },
+    { key:"cardiologie", label:"Cardiologie", icon:"🫀" },
+    { key:"usic", label:"USIC", icon:"🚨" },
+    { key:"avis", label:"Avis", icon:"📞" },
+  ];
 
   const parseTags = (tags) => {
     if (!tags) return [];
@@ -111,7 +120,38 @@ export default function CardiologyApp() {
     return tags.split(",").map(t => t.trim()).filter(Boolean);
   };
 
-  useEffect(() => { fetchMedicaments(); fetchPathologies(); }, []);
+  useEffect(() => { fetchMedicaments(); fetchPathologies(); fetchAnnuaire(); }, []);
+
+  const fetchAnnuaire = async () => {
+    const { data } = await supabase.from("annuaire").select("*").order("nom");
+    if (data) {
+      const grouped = {};
+      data.forEach(item => {
+        if (!grouped[item.categorie]) grouped[item.categorie] = [];
+        grouped[item.categorie].push(item);
+      });
+      setAnnuaire(grouped);
+    }
+  };
+
+  const handleAnnuaireSave = async () => {
+    if (!annuaireForm.nom) return;
+    if (annuaireForm.id) {
+      const { id, ...fields } = annuaireForm;
+      await supabase.from("annuaire").update(fields).eq("id", id);
+    } else {
+      await supabase.from("annuaire").insert([annuaireForm]);
+    }
+    await fetchAnnuaire();
+    setAnnuaireEdit(false);
+    setAnnuaireForm({ nom:"", poste:"", categorie:"medecin", info:"" });
+  };
+
+  const handleAnnuaireDelete = async (id) => {
+    if (!window.confirm("Supprimer cette entrée ?")) return;
+    await supabase.from("annuaire").delete().eq("id", id);
+    await fetchAnnuaire();
+  };
 
   const fetchMedicaments = async () => {
     const { data } = await supabase.from("medicaments").select("*").order("title");
@@ -541,26 +581,42 @@ export default function CardiologyApp() {
             </span>
           </div>
 
+          {/* ANNUAIRE depuis Supabase */}
           {activeCard === "annuaire" && (
             <div style={{ maxWidth:700, margin:"0 auto", padding:"32px 24px" }}>
-              {[
-                { icon:"🩺", title:"Médecin", content: DOCTORS },
-                { icon:"🫀", title:"Cardiologie", content: null },
-                { icon:"🚨", title:"USIC", content: null },
-                { icon:"📞", title:"Avis", content: null },
-              ].map(sub => (
-                <div key={sub.title} className="tc" style={{ marginBottom:16 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-                    <span style={{ fontSize:28 }}>{sub.icon}</span>
-                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:"#1A1A1A" }}>{sub.title}</div>
+              {CATEGORIES.map(cat => (
+                <div key={cat.key} style={{ background:"#FFFFFF", border:"1px solid #EDE6DF", borderRadius:8, marginBottom:20, overflow:"hidden" }}>
+                  {/* En-tête catégorie */}
+                  <div style={{ padding:"16px 20px", borderBottom:"1px solid #EDE6DF", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                      <span style={{ fontSize:24 }}>{cat.icon}</span>
+                      <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:"#1A1A1A" }}>{cat.label}</span>
+                    </div>
+                    {isAdmin && (
+                      <button onClick={() => { setAnnuaireForm({ nom:"", poste:"", categorie:cat.key, info:"" }); setAnnuaireEdit(true); }} style={{ background:ACCENT, border:"none", borderRadius:4, color:"#fff", fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"6px 12px", cursor:"pointer" }}>+ Ajouter</button>
+                    )}
                   </div>
-                  <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EDE6DF" }}>
-                    {sub.content ? sub.content.map((item, i) => (
-                      <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom: i < sub.content.length - 1 ? "1px solid #F2EDE8" : "none" }}>
-                        <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:17, fontWeight:600, color:"#1A1A1A" }}>{item.nom}</span>
-                        <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:ACCENT, fontWeight:700 }}>{item.tel}</span>
+                  {/* Liste */}
+                  <div style={{ padding:"8px 20px" }}>
+                    {(annuaire[cat.key] || []).length === 0 ? (
+                      <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, color:"#A09080", fontStyle:"italic", padding:"12px 0" }}>Aucune entrée.</p>
+                    ) : (annuaire[cat.key] || []).map((item, i) => (
+                      <div key={item.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 0", borderBottom: i < (annuaire[cat.key].length - 1) ? "1px solid #F2EDE8" : "none" }}>
+                        <div>
+                          <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:17, fontWeight:600, color:"#1A1A1A" }}>{item.nom}</div>
+                          {item.info ? <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:13, color:"#8C7B6E", fontStyle:"italic", marginTop:2 }}>{item.info}</div> : null}
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:13, color:ACCENT, fontWeight:700 }}>{item.poste}</span>
+                          {isAdmin && (
+                            <div style={{ display:"flex", gap:6 }}>
+                              <button onClick={() => { setAnnuaireForm({ ...item }); setAnnuaireEdit(true); }} style={{ background:"#F7F4F0", border:"1px solid #DDD5CC", borderRadius:3, color:"#6A5A50", cursor:"pointer", fontSize:11, padding:"3px 8px", fontFamily:"'JetBrains Mono',monospace" }}>Mod.</button>
+                              <button onClick={() => handleAnnuaireDelete(item.id)} style={{ background:"#FDF0EE", border:"1px solid " + ACCENT + "30", borderRadius:3, color:ACCENT, cursor:"pointer", fontSize:11, padding:"3px 8px", fontFamily:"'JetBrains Mono',monospace" }}>×</button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )) : <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, color:"#A09080", fontStyle:"italic" }}>Contenu à venir.</p>}
+                    ))}
                   </div>
                 </div>
               ))}
@@ -572,6 +628,35 @@ export default function CardiologyApp() {
               <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:17, color:"#8C7B6E", fontStyle:"italic", textAlign:"center", marginTop:60 }}>Contenu à venir.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* MODAL ANNUAIRE EDIT */}
+      {annuaireEdit && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div style={{ background:"#FFF", borderRadius:12, padding:32, width:"100%", maxWidth:400, border:"1px solid #EDE6DF", boxShadow:"0 20px 60px rgba(0,0,0,0.15)" }}>
+            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:600, color:"#1A1A1A", marginBottom:20 }}>{annuaireForm.id ? "Modifier" : "Ajouter"}</div>
+            {[
+              { key:"nom", label:"Nom", placeholder:"Dr DUPONT Jean" },
+              { key:"poste", label:"Poste", placeholder:"22 11 01" },
+              { key:"info", label:"Info (optionnel)", placeholder:"Chef de service..." },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom:14 }}>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:ACCENT, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:6 }}>{f.label}</div>
+                <input value={annuaireForm[f.key] || ""} onChange={e => setAnnuaireForm({ ...annuaireForm, [f.key]: e.target.value })} placeholder={f.placeholder} style={{ width:"100%", padding:"10px 14px", border:"1px solid #DDD5CC", borderRadius:6, fontFamily:"'Cormorant Garamond',serif", fontSize:15, outline:"none", background:"#F7F4F0" }} />
+              </div>
+            ))}
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:ACCENT, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:6 }}>Catégorie</div>
+              <select value={annuaireForm.categorie} onChange={e => setAnnuaireForm({ ...annuaireForm, categorie: e.target.value })} style={{ width:"100%", padding:"10px 14px", border:"1px solid #DDD5CC", borderRadius:6, fontFamily:"'Cormorant Garamond',serif", fontSize:15, outline:"none", background:"#F7F4F0" }}>
+                {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={() => { setAnnuaireEdit(false); setAnnuaireForm({ nom:"", poste:"", categorie:"medecin", info:"" }); }} style={{ flex:1, padding:"12px", background:"#F7F4F0", border:"1px solid #DDD5CC", borderRadius:6, cursor:"pointer", fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:"#8C7B6E" }}>Annuler</button>
+              <button onClick={handleAnnuaireSave} style={{ flex:2, padding:"12px", background:ACCENT, border:"none", borderRadius:6, cursor:"pointer", fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:"#fff" }}>Sauvegarder</button>
+            </div>
+          </div>
         </div>
       )}
 
