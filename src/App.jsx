@@ -6,6 +6,12 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const ADMIN_PASSWORD = "cardio2024";
 const ACCENT = "#C0392B";
+const CATEGORIES = [
+  { key:"medecin", label:"Médecin", icon:"🩺" },
+  { key:"cardiologie", label:"Cardiologie", icon:"🫀" },
+  { key:"usic", label:"USIC", icon:"🚨" },
+  { key:"avis", label:"Avis", icon:"📞" },
+];
 
 const cardiologyTopics = [
   { id:1,letter:"A",title:"Arythmie cardiaque",subtitle:"Troubles du rythme",tags:["ECG","Holter","Antiarythmiques"],icon:"⚡",epidemiologie:"Les arythmies cardiaques touchent des millions de personnes dans le monde. La fibrillation auriculaire, forme la plus fréquente, affecte environ 1 à 2 % de la population générale, avec une prévalence croissante avec l'âge.",physiopathologie:"Les arythmies résultent d'anomalies de la formation ou de la conduction de l'influx électrique cardiaque. Elles peuvent être dues à un automatisme anormal, à des phénomènes de réentrée ou à des troubles de la conduction auriculo-ventriculaire.",diagnostique:"L'ECG de surface est l'examen clé. Un holter-ECG sur 24h ou plus permet de capturer des arythmies paroxystiques. L'exploration électrophysiologique (EEP) est indiquée dans les formes complexes.",traitement:"Le traitement dépend du type d'arythmie : antiarythmiques (bêtabloquants, amiodarone), cardioversion électrique, ablation par radiofréquence ou implantation d'un pacemaker ou défibrillateur selon les cas."},
@@ -106,12 +112,6 @@ export default function CardiologyApp() {
   const [annuaire, setAnnuaire] = useState({});
   const [annuaireEdit, setAnnuaireEdit] = useState(false);
   const [annuaireForm, setAnnuaireForm] = useState({ nom:"", poste:"", categorie:"medecin", info:"" });
-  const CATEGORIES = [
-    { key:"medecin", label:"Médecin", icon:"🩺" },
-    { key:"cardiologie", label:"Cardiologie", icon:"🫀" },
-    { key:"usic", label:"USIC", icon:"🚨" },
-    { key:"avis", label:"Avis", icon:"📞" },
-  ];
 
   const parseTags = (tags) => {
     if (!tags) return [];
@@ -136,12 +136,16 @@ export default function CardiologyApp() {
 
   const handleAnnuaireSave = async () => {
     if (!annuaireForm.nom) return;
-    if (annuaireForm.id) {
-      const { id, ...fields } = annuaireForm;
-      await supabase.from("annuaire").update(fields).eq("id", id);
+    const { id, ...fields } = annuaireForm;
+    let error;
+    if (id) {
+      const res = await supabase.from("annuaire").update(fields).eq("id", id);
+      error = res.error;
     } else {
-      await supabase.from("annuaire").insert([annuaireForm]);
+      const res = await supabase.from("annuaire").insert([fields]);
+      error = res.error;
     }
+    if (error) { alert("Erreur : " + error.message); return; }
     await fetchAnnuaire();
     setAnnuaireEdit(false);
     setAnnuaireForm({ nom:"", poste:"", categorie:"medecin", info:"" });
