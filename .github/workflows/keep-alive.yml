@@ -1,0 +1,14 @@
+name: Keep Supabase Alive
+on:
+  schedule:
+    - cron: '0 8 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -X GET 'https://gkkkiwvbvubzazdpjpea.supabase.co/rest/v1/medicaments?limit=1' \
+          -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdra2tpd3ZidnViemF6ZHBqcGVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NTA4NjYsImV4cCI6MjA5ODEyNjg2Nn0.hoODoh83OQawIpqjTvq3Y0vQaPVZFPsoWwkKN2LSZCs'
