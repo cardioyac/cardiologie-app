@@ -448,17 +448,21 @@ export default function CardiologyApp() {
             </div>
           </div>
 
-          <div style={{ background:"#FDFAF8", borderBottom:"1px solid #EDE6DF", padding:"12px 24px", display:"flex", gap:8, overflowX:"auto" }}>
-            {sections.map(s => <button key={s.key} className={"st" + (activeSection === s.key ? " active" : "")} onClick={() => setActiveSection(s.key)} style={{ flexShrink:0 }}>{s.label}</button>)}
+          <div style={{ background:"#FDFAF8", borderBottom:"1px solid #EDE6DF", padding:"12px 24px", display:"flex", gap:8, overflowX:"auto", position:"sticky", top:57, zIndex:9 }}>
+            {sections.map(s => <button key={s.key} className={"st" + (activeSection === s.key ? " active" : "")} onClick={() => { setActiveSection(s.key); const el = document.getElementById("sec-" + s.key); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }} style={{ flexShrink:0 }}>{s.label}</button>)}
           </div>
 
           <div style={{ maxWidth:700, margin:"0 auto", padding:"32px 24px" }}>
-            <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:ACCENT, letterSpacing:"0.14em", textTransform:"uppercase", marginBottom:16 }}>
-              {sections.find(s => s.key === activeSection)?.label}
-            </div>
-            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:19, color:"#2A1A10", lineHeight:1.9 }}>
-              {renderMarkdown(getDetailContent(selectedItem, activeSection))}
-            </div>
+            {sections.map(sec => (
+              <div key={sec.key} id={"sec-" + sec.key} style={{ marginBottom:32, scrollMarginTop:130 }}>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:ACCENT, letterSpacing:"0.14em", textTransform:"uppercase", marginBottom:12, paddingBottom:8, borderBottom:"2px solid " + ACCENT + "30" }}>
+                  {sec.label}
+                </div>
+                <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:19, color:"#2A1A10", lineHeight:1.9 }}>
+                  {renderMarkdown(getDetailContent(selectedItem, sec.key))}
+                </div>
+              </div>
+            ))}
 
             {/* ECG IMAGES & PDF */}
             {mainTab === "ecg" && (
