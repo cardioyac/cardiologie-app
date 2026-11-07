@@ -408,7 +408,7 @@ export default function CardiologyApp() {
                       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
                         <span style={{ fontSize:22 }}>{item.icon}</span>
                         <div>
-                          <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, fontWeight:700, color:"#1A1A1A" }}>{item.title}</div>
+                          <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, fontWeight:700, color:"#1A1A1A" }}>{item.title}{item.en_construction && <span style={{ marginLeft:8, fontFamily:"'JetBrains Mono',monospace", fontSize:9, fontWeight:600, color:"#fff", background:"#E67E22", borderRadius:3, padding:"2px 7px", letterSpacing:"0.06em", textTransform:"uppercase", verticalAlign:"middle" }}>En construction</span>}</div>
                           <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:"#B0A090", letterSpacing:"0.08em", textTransform:"uppercase", marginTop:2 }}>{item.subtitle}</div>
                         </div>
                       </div>
@@ -442,7 +442,7 @@ export default function CardiologyApp() {
 
           <div style={{ background:"#FFFFFF", padding:"28px 24px 24px", borderBottom:"1px solid #EDE6DF" }}>
             <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:"#B08070", letterSpacing:"0.14em", textTransform:"uppercase", marginBottom:6 }}>{selectedItem.subtitle}</div>
-            <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:32, fontWeight:400, letterSpacing:"-0.02em", lineHeight:1.1, color:"#1A1A1A", marginBottom:16 }}>{selectedItem.title}</h1>
+            <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:32, fontWeight:400, letterSpacing:"-0.02em", lineHeight:1.1, color:"#1A1A1A", marginBottom:16 }}>{selectedItem.title}{selectedItem.en_construction && <span style={{ marginLeft:12, fontFamily:"'JetBrains Mono',monospace", fontSize:11, fontWeight:600, color:"#fff", background:"#E67E22", borderRadius:3, padding:"3px 9px", letterSpacing:"0.06em", textTransform:"uppercase", verticalAlign:"middle" }}>En construction</span>}</h1>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
               {(selectedItem.tags || []).map(tag => <span key={tag} style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"4px 12px", background:"#FDF0EE", border:"1px solid " + ACCENT + "30", borderRadius:3, color:ACCENT }}>{tag}</span>)}
             </div>
@@ -715,6 +715,11 @@ export default function CardiologyApp() {
           <div style={{ background:"#FFF", borderRadius:12, padding:32, width:"100%", maxWidth:560, border:"1px solid #EDE6DF", boxShadow:"0 20px 60px rgba(0,0,0,0.15)", maxHeight:"90vh", overflowY:"auto" }}>
             <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:24, fontWeight:600, color:"#1A1A1A", marginBottom:4 }}>{editData.id ? "Modifier" : mainTab === "pathologies" ? "Nouvelle pathologie" : "Nouveau médicament"}</div>
             <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:"#B08070", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:24 }}>{editData.title || "Nouveau"}</div>
+
+            <label style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, padding:"10px 14px", background:"#FFF4E8", border:"1px solid #E67E2260", borderRadius:6, cursor:"pointer", fontFamily:"'JetBrains Mono',monospace", fontSize:11, color:"#C0661A" }}>
+              <input type="checkbox" checked={!!editData.en_construction} onChange={e => setEditData({ ...editData, en_construction: e.target.checked })} />
+              Marquer "En construction"
+            </label>
 
             {!editData.id && (
               <div>
