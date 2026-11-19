@@ -863,7 +863,7 @@ export default function CardiologyApp() {
 
       {/* ADMIN INDICATOR */}
       {isAdmin && (
-        <div style={{ position:"fixed", top:12, right:12, zIndex:90, display:"flex", alignItems:"center", gap:8 }}>
+        <div style={{ position:"fixed", bottom:88, left:12, zIndex:90, display:"flex", alignItems:"center", gap:8, opacity:0.9 }}>
           <div style={{ background:ACCENT, color:"#fff", fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"4px 10px", borderRadius:3, letterSpacing:"0.08em" }}>ADMIN</div>
           <button onClick={handleAdminLogout} style={{ background:"#fff", border:"1px solid " + ACCENT + "50", color:ACCENT, fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"4px 10px", borderRadius:3, cursor:"pointer", letterSpacing:"0.08em" }}>Déconnexion</button>
         </div>
