@@ -70,7 +70,10 @@ const NAV_TABS = [
   { key:"ecg", label:"ECG", icon:"📈" },
   { key:"medicaments", label:"Médicaments", icon:"💊" },
   { key:"local", label:"Chalon", icon:"🏥" },
+  { key:"documents", label:"Documents", icon:"📄" },
+  { key:"sites", label:"Sites", icon:"🔗" },
 ];
+const RES_TABS = ["documents", "sites"];
 
 const DOCTORS = [
   { nom:"Dr BUTTARD Patrick", tel:"22 11 01" },
@@ -111,6 +114,11 @@ export default function CardiologyApp() {
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [annuaire, setAnnuaire] = useState({});
   const [annuaireEdit, setAnnuaireEdit] = useState(false);
+  const [ressources, setRessources] = useState([]);
+  const [resEdit, setResEdit] = useState(false);
+  const [resForm, setResForm] = useState({ titre:"", description:"", url:"" });
+  const [resFile, setResFile] = useState(null);
+  const [resBusy, setResBusy] = useState(false);
   const [annuaireForm, setAnnuaireForm] = useState({ nom:"", poste:"", categorie:"medecin", info:"" });
 
   const parseTags = (tags) => {
@@ -120,7 +128,7 @@ export default function CardiologyApp() {
     return tags.split(",").map(t => t.trim()).filter(Boolean);
   };
 
-  useEffect(() => { fetchMedicaments(); fetchPathologies(); fetchAnnuaire(); }, []);
+  useEffect(() => { fetchMedicaments(); fetchPathologies(); fetchAnnuaire(); fetchRessources(); }, []);
 
   const fetchAnnuaire = async () => {
     const { data } = await supabase.from("annuaire").select("*").order("nom");
@@ -149,6 +157,42 @@ export default function CardiologyApp() {
     await fetchAnnuaire();
     setAnnuaireEdit(false);
     setAnnuaireForm({ nom:"", poste:"", categorie:"medecin", info:"" });
+  };
+
+  const fetchRessources = async () => {
+    const { data } = await supabase.from("ressources").select("*").order("titre");
+    if (data) setRessources(data);
+  };
+
+  const handleResSave = async () => {
+    if (!resForm.titre) { alert("Titre obligatoire"); return; }
+    setResBusy(true);
+    let url = resForm.url;
+    if (mainTab === "documents") {
+      if (!resFile) { alert("Choisissez un fichier"); setResBusy(false); return; }
+      const safe = Date.now() + "-" + resFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const up = await supabase.storage.from("documents").upload(safe, resFile);
+      if (up.error) { alert("Erreur upload : " + up.error.message); setResBusy(false); return; }
+      url = supabase.storage.from("documents").getPublicUrl(safe).data.publicUrl;
+    } else {
+      if (!url) { alert("Adresse du site obligatoire"); setResBusy(false); return; }
+      if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+    }
+    const { error } = await supabase.from("ressources").insert([{ type: mainTab === "documents" ? "document" : "site", titre: resForm.titre, description: resForm.description, url }]);
+    setResBusy(false);
+    if (error) { alert("Erreur : " + error.message); return; }
+    await fetchRessources();
+    setResEdit(false); setResFile(null); setResForm({ titre:"", description:"", url:"" });
+  };
+
+  const handleResDelete = async (item) => {
+    if (!window.confirm("Supprimer " + item.titre + " ?")) return;
+    if (item.type === "document") {
+      const name = decodeURIComponent(item.url.split("/").pop());
+      await supabase.storage.from("documents").remove([name]);
+    }
+    await supabase.from("ressources").delete().eq("id", item.id);
+    await fetchRessources();
   };
 
   const handleAnnuaireDelete = async (id) => {
@@ -374,8 +418,10 @@ export default function CardiologyApp() {
             {mainTab === "ecg" && "Interprétation ECG — classification alphabétique"}
             {mainTab === "medicaments" && "Médicaments cardiovasculaires — classification alphabétique"}
             {mainTab === "local" && "Ressources locales — Chalon-sur-Saône"}
+            {mainTab === "documents" && "Documents utiles — à télécharger"}
+            {mainTab === "sites" && "Sites utiles"}
           </p>
-          {mainTab !== "local" && (
+          {mainTab !== "local" && !RES_TABS.includes(mainTab) && (
             <div style={{ position:"relative" }}>
               <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", color:"#C0A090", fontSize:14 }}>⌕</span>
               <input className="si" placeholder={"Rechercher..."} value={search} onChange={e => setSearch(e.target.value)} />
@@ -385,7 +431,7 @@ export default function CardiologyApp() {
       </div>
 
       {/* ALPHABET NAV */}
-      {mainTab !== "local" && (
+      {mainTab !== "local" && !RES_TABS.includes(mainTab) && (
         <div style={{ borderBottom:"1px solid #EDE6DF", padding:"10px 24px", background:"#FDFAF8", overflowX:"auto" }}>
           <div style={{ display:"flex", gap:4, minWidth:"max-content" }}>
             <button className={"lb" + (!activeLetter ? " active" : "")} onClick={() => setActiveLetter(null)}>Tous</button>
@@ -395,7 +441,7 @@ export default function CardiologyApp() {
       )}
 
       {/* CONTENT LIST */}
-      {mainTab !== "local" && (
+      {mainTab !== "local" && !RES_TABS.includes(mainTab) && (
         <div style={{ maxWidth:900, margin:"0 auto", padding:"24px" }}>
           {Object.keys(grouped).length === 0
             ? <div style={{ textAlign:"center", padding:"80px 0", color:"#C0B0A0", fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontStyle:"italic" }}>Aucun résultat trouvé</div>
@@ -546,6 +592,59 @@ export default function CardiologyApp() {
               <p style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:12, color:"#C0B0A0", fontStyle:"italic" }}>
                 Application à vocation éducative — Toujours se référer aux recommandations de la Société Européenne de Cardiologie (ESC).
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DOCUMENTS / SITES */}
+      {RES_TABS.includes(mainTab) && (
+        <div style={{ maxWidth:700, margin:"0 auto", padding:"24px 24px 120px" }}>
+          {ressources.filter(r => r.type === (mainTab === "documents" ? "document" : "site")).length === 0 && (
+            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:17, color:"#A09080", fontStyle:"italic" }}>Aucun élément pour le moment.</div>
+          )}
+          <div style={{ display:"grid", gap:12 }}>
+            {ressources.filter(r => r.type === (mainTab === "documents" ? "document" : "site")).map(r => (
+              <div key={r.id} className="tc" style={{ display:"flex", alignItems:"center", gap:12 }}>
+                <a href={r.url} target="_blank" rel="noopener noreferrer" {...(r.type === "document" ? { download: true } : {})} style={{ flex:1, textDecoration:"none", color:"inherit" }}>
+                  <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, fontWeight:700, color:"#1A1A1A" }}>{r.titre}</div>
+                  {r.description && <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:15, color:"#7A6A5A", marginTop:2 }}>{r.description}</div>}
+                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:ACCENT, letterSpacing:"0.08em", textTransform:"uppercase", marginTop:6 }}>{r.type === "document" ? "Télécharger / ouvrir" : "Ouvrir le site"}</div>
+                </a>
+                {isAdmin && <button onClick={() => handleResDelete(r)} style={{ background:"transparent", border:"1px solid " + ACCENT + "60", borderRadius:4, color:ACCENT, fontFamily:"'JetBrains Mono',monospace", fontSize:10, padding:"6px 12px", cursor:"pointer" }}>Supprimer</button>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isAdmin && RES_TABS.includes(mainTab) && (
+        <div style={{ position:"fixed", bottom:90, right:20, zIndex:45 }}>
+          <button onClick={() => { setResForm({ titre:"", description:"", url:"" }); setResFile(null); setResEdit(true); }} style={{ background:ACCENT, border:"none", borderRadius:"50px", color:"#fff", fontFamily:"'JetBrains Mono',monospace", fontSize:12, padding:"14px 20px", cursor:"pointer", boxShadow:"0 4px 20px rgba(192,57,43,0.4)", letterSpacing:"0.06em" }}>
+            {mainTab === "documents" ? "+ Nouveau document" : "+ Nouveau site"}
+          </button>
+        </div>
+      )}
+
+      {resEdit && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div style={{ background:"#FFF", borderRadius:12, padding:32, width:"100%", maxWidth:480, border:"1px solid #EDE6DF" }}>
+            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:24, fontWeight:600, color:"#1A1A1A", marginBottom:20 }}>{mainTab === "documents" ? "Nouveau document" : "Nouveau site"}</div>
+            {[{ key:"titre", label:"Titre" }, { key:"description", label:"Description (facultatif)" }].concat(mainTab === "sites" ? [{ key:"url", label:"Adresse (https://...)" }] : []).map(f => (
+              <div key={f.key} style={{ marginBottom:16 }}>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:ACCENT, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:6 }}>{f.label}</div>
+                <input value={resForm[f.key] || ""} onChange={e => setResForm({ ...resForm, [f.key]: e.target.value })} style={{ width:"100%", padding:"10px 14px", border:"1px solid #DDD5CC", borderRadius:6, fontFamily:"'Cormorant Garamond',serif", fontSize:15, outline:"none", background:"#F7F4F0" }} />
+              </div>
+            ))}
+            {mainTab === "documents" && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:ACCENT, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:6 }}>Fichier (PDF, PowerPoint...)</div>
+                <input type="file" onChange={e => setResFile(e.target.files[0] || null)} />
+              </div>
+            )}
+            <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:20 }}>
+              <button onClick={() => setResEdit(false)} style={{ background:"transparent", border:"1px solid #DDD5CC", borderRadius:6, padding:"10px 18px", cursor:"pointer" }}>Annuler</button>
+              <button onClick={handleResSave} disabled={resBusy} style={{ background:ACCENT, border:"none", borderRadius:6, color:"#fff", padding:"10px 18px", cursor:"pointer" }}>{resBusy ? "Envoi..." : "Sauvegarder"}</button>
             </div>
           </div>
         </div>
